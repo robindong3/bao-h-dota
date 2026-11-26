@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+dev.vars
+.dev.vars
+.wrangler/
+.openai/
+data/
+node_modules/
+*.log
+*.tar.gz
+/dist/match-*

@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["is_match", "id", "date", "duration", "mode", "radiant", "dire", "winner", "players", "review_notes"],
+  "properties": {
+    "is_match": {"type": "boolean"},
+    "id": {"type": ["string", "null"]},
+    "date": {"type": ["string", "null"]},
+    "duration": {"type": ["string", "null"]},
+    "mode": {"type": ["string", "null"]},
+    "radiant": {"type": ["integer", "null"]},
+    "dire": {"type": ["integer", "null"]},
+    "winner": {"enum": ["radiant", "dire", null]},
+    "players": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["nickname", "hero", "kills", "deaths", "assists", "gold"],
+        "properties": {
+          "nickname": {"type": ["string", "null"]},
+          "hero": {"type": ["string", "null"]},
+          "kills": {"type": ["integer", "null"]},
+          "deaths": {"type": ["integer", "null"]},
+          "assists": {"type": ["integer", "null"]},
+          "gold": {"type": ["integer", "null"]}
+        }
+      }
+    },
+    "review_notes": {"type": "array", "items": {"type": "string"}}
+  }
+}

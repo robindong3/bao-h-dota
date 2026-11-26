@@ -30,7 +30,7 @@ async function submit(request, inbox) {
   const hash = await crypto.subtle.digest('SHA-256',image);
   const id = Array.from(new Uint8Array(hash), b=>b.toString(16).padStart(2,'0')).join('');
   const result = await inbox.get('result/'+id,draftOptions);
-  if (result?.draft) return json(result);
+  if (result?.ownerSaved && result.draft) return json(result);
   if (result) await inbox.delete('result/'+id);
   if (!await inbox.get('pending/'+id,{type:'stream', ...fresh})) {
     const queue = await inbox.list({prefix:'pending/',limit:32});

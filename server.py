@@ -8,10 +8,13 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from subprocess import TimeoutExpired
 
 from codex_vision import recognize_with_codex
+from owner_publish import UPLOADS, PUBLISH_LOCK, confirm_match, publish, waiting_uploads
 
 ROOT = Path(__file__).resolve().parent
 CODEX_ENABLED = os.getenv('DOTA_LOCAL_CODEX') == '1'
 INBOX = ROOT / 'data' / 'inbox'
+OWNER_ORIGINS = ('http://127.0.0.1:19374', 'http://localhost:19374')
+LOCAL_HOSTS = ('127.0.0.1:19374', 'localhost:19374')
 
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -27,10 +30,12 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(payload)
 
     def do_GET(self):
+        if self.path.startswith('/api/') and self.headers.get('Host') not in LOCAL_HOSTS:
+            return self.send_json(403, {'error': 'LOCAL_ONLY'})
         if self.path == '/api/health':
             return self.send_json(200, {'aiConfigured': CODEX_ENABLED})
         if self.path == '/api/import-drafts':
-            drafts = []
+            drafts = waiting_uploads()
             for path in sorted(INBOX.glob('*.json'), reverse=True):
                 if not re.fullmatch(r'[0-9]{6,12}', path.stem):
                     continue
@@ -43,13 +48,15 @@ class Handler(SimpleHTTPRequestHandler):
                     continue
             return self.send_json(200, {'drafts': drafts})
         screenshot = re.fullmatch(r'/api/import-screenshot/([0-9]{6,12})', self.path)
-        if screenshot:
+        queued = re.fullmatch(r'/api/owner/screenshot/([0-9a-f]{64})', self.path)
+        if screenshot or queued:
             try:
-                data = (INBOX / (screenshot[1] + '.png')).read_bytes()
+                file = UPLOADS / (queued[1] + '.jpg') if queued else INBOX / (screenshot[1] + '.png')
+                data = file.read_bytes()
             except OSError:
                 return self.send_json(404, {'error': 'NOT_FOUND'})
             self.send_response(200)
-            self.send_header('Content-Type', 'image/png')
+            self.send_header('Content-Type', 'image/jpeg' if queued else 'image/png')
             self.send_header('Content-Length', str(len(data)))
             self.end_headers()
             return self.wfile.write(data)
@@ -58,6 +65,10 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
+        if self.headers.get('Host') not in LOCAL_HOSTS:
+            return self.send_json(403, {'error': 'LOCAL_ONLY'})
+        if self.path.startswith('/api/owner/'):
+            return self.handle_owner()
         if self.path != '/api/recognize':
             return self.send_json(404, {'error': 'NOT_FOUND'})
         if self.headers.get('Origin') not in (None, 'http://127.0.0.1:19374', 'http://localhost:19374'):
@@ -100,6 +111,32 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(504, {'error': 'AI_TIMEOUT', 'message': '识别超时，可以重试或手动填写。'})
         except (RuntimeError, OSError, ValueError):
             return self.send_json(502, {'error': 'AI_EXTRACTION_FAILED', 'message': '本机 Codex 未能返回识别结果。'})
+
+    def handle_owner(self):
+        if self.headers.get('Origin') not in OWNER_ORIGINS:
+            return self.send_json(403, {'message':'请在本机管理页操作。'})
+        if self.path not in ('/api/owner/confirm', '/api/owner/publish'):
+            return self.send_json(404, {'error':'NOT_FOUND'})
+        if not PUBLISH_LOCK.acquire(blocking=False):
+            return self.send_json(409, {'message':'本机正在保存或发布，请稍后再试。'})
+        try:
+            if self.path == '/api/owner/publish':
+                return self.send_json(200, {'published':publish()})
+            length = int(self.headers.get('Content-Length', '0'))
+            if not 0 < length <= 12 * 1024 * 1024:
+                return self.send_json(413, {'message':'截图太大。'})
+            body = json.loads(self.rfile.read(length))
+            return self.send_json(201, {'match':confirm_match(body['match'], body.get('job'))})
+        except FileExistsError as error:
+            return self.send_json(409, {'message':str(error)})
+        except (ValueError, TypeError, KeyError) as error:
+            return self.send_json(400, {'message':str(error)})
+        except TimeoutExpired:
+            return self.send_json(504, {'message':'发布查询超时，已确认对局仍保存在本机。'})
+        except (RuntimeError, OSError) as error:
+            return self.send_json(502, {'message':str(error)})
+        finally:
+            PUBLISH_LOCK.release()
 
 if __name__ == '__main__':
     print('Local preview: http://127.0.0.1:19374', flush=True)

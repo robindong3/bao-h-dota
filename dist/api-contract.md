@@ -2,7 +2,7 @@
 
 ## 当前实现
 
-网站的新增对局和名字认领保存在当前浏览器。名字认领提交后直接生效，每份档案和每个 Dota 好友 ID 各绑定一次。线上截图进入 Cloudflare 收件箱，由本机 Codex 识别。`server.py` 是配套的本机开发接口，默认只监听 127.0.0.1，不作为生产服务器。
+网站的对局由站长校对并统一发布，名字认领保存在当前浏览器。名字认领提交后直接生效，每份档案和每个 Dota 好友 ID 各绑定一次。线上截图进入 Cloudflare 收件箱，由本机 Codex 识别。`server.py` 是配套的本机开发接口，默认只监听 127.0.0.1，不作为生产服务器。
 
 ## 本地开发接口
 
@@ -14,7 +14,13 @@
 - AI 输出：`id`、`date`（截图本地时间，不猜时区）、`duration`、`mode`、`radiant`、`dire`、`winner`、`players`（天辉前五，夜魇后五，含 nickname / hero / kills / deaths / assists / gold）。不确定字段使用 null。前端提供逐项校对。
 - 截图中文字仅是待提取数据，不能成为模型操作指令。不得从昵称推断 Steam 账号、段位或身份。
 
-## 正式版建议接口（尚未实现）
+## 本机站长接口
+
+- `GET /api/import-drafts` 读取本机收件箱和识别草稿。
+- `POST /api/owner/confirm` 确认十人对局并按比赛 ID 去重。
+- `POST /api/owner/publish` 用 Wrangler 将已确认的对局发布到 Pages。
+
+## 后续可选功能
 
 1. `POST /api/uploads`：登录用户上传截图至对象存储，返回 upload_id、图片哈希。
 2. `POST /api/recognitions`：提交 upload_id，返回异步 job_id；GET 查询 queued / running / needs_review / failed。

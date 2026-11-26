@@ -8,6 +8,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from codex_vision import recognize_with_codex
+from owner_publish import keep_upload
 
 ROOT = Path(__file__).resolve().parent
 URL = os.environ.get('DOTA_AGENT_URL', 'https://bao-h-dota.pages.dev')
@@ -45,6 +46,7 @@ def run():
                     continue
                 job = response.headers['X-Job']
                 image = response.read()
+            keep_upload(job, image)
             try:
                 draft = recognize_with_codex(image, 'image/jpeg')
                 if draft.get('is_match') and len(draft.get('players', [])) == 10:
@@ -54,7 +56,8 @@ def run():
             except Exception:
                 logging.exception('Recognition failed')
                 result = {'message': '截图已上传，本机识别失败。请重试或手动填写。'}
-            body = json.dumps({'id': job, 'result': result}).encode()
+            keep_upload(job, image, result)
+            body = json.dumps({'id': job, 'result': {**result, 'ownerSaved': True}}).encode()
             with post('complete', key, body):
                 pass
             previous = ''

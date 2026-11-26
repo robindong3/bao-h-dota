@@ -12,7 +12,9 @@ Dota 2 群友内战记录站。支持截图粘贴、拍照上传、识别与校�
 
 在本机建立 `data/.agent-key`，填入同一个密钥。将 `DOTA_AGENT_URL` 设为 Pages 站点地址，再运行 `python recognition_agent.py`。识别进程主动从 Cloudflare 领取截图。电脑离线时截图会等待处理，队列和识别结果保留一天。
 
-对局校对确认和认领使用浏览器存储。公共对局可以通过 `dist/published-matches.js` 随站点部署。
+群友上传收到回执后可继续上传。站长从本机管理页 `http://127.0.0.1:19374/#upload` 刷新收件箱、校对、确认，然后发布已确认对局。发布后全群共享对局和排行榜。认领记录仅保存在提交认领的浏览器。
+
+发布需要 Node.js 以及已登录的 Wrangler。默认在项目的 `node_modules` 中查找 Wrangler；可以设定 `DOTA_WRANGLER_DIR` 使用其他安装目录。如需指定 Wrangler 登录配置目录，设定 `DOTA_WRANGLER_CONFIG_HOME`。设定 `DOTA_PAGES_PROJECT` 可发布到自己的 Pages 项目。已确认对局保存在忽略提交的 `data/owner/` 下；发布时会生成 `dist/published-matches.js` 和对应截图，实际数据请留在用于运营的工作副本。
 
 ## 验证
 
